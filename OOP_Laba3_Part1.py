@@ -142,3 +142,27 @@ class Canvas(QWidget):
         super().resizeEvent(event)
         self.update()
 
+# 
+#  Главное окно
+# 
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Лаб. 3, Часть 1 — Круги на форме")
+        self.resize(700, 500)
+
+        self._canvas = Canvas(self)
+        self.setCentralWidget(self._canvas)
+
+        # строка состояния с подсказками
+        self.statusBar().showMessage(
+            "ЛКМ — добавить круг | ЛКМ по кругу — выделить | "
+            "Ctrl+ЛКМ — мультивыделение | Del — удалить выделенные"
+        )
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec())
