@@ -11,6 +11,140 @@ from PyQt6.QtCore import Qt, pyqtSignal, QObject
 
 SAVE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "lab3_mvc_state.json")
 
+class NumberModel(QObject):
+
+    changed = pyqtSignal()
+
+    MIN_VALUE = 0
+    MAX_VALUE = 100
+
+    def __init__(self):
+        super().__init__()
+        self._a = 20
+        self._b = 50
+        self._c = 80
+        self._load()
+
+    @property
+    def a(self) -> int:
+        return self._a
+
+    @property
+    def b(self) -> int:
+        return self._b
+
+    @property
+    def c(self) -> int:
+        return self._c
+
+    def set_all(self, a: int, b: int, c: int):
+        a = max(self.MIN_VALUE, min(self.MAX_VALUE, a))
+        b = max(self.MIN_VALUE, min(self.MAX_VALUE, b))
+        c = max(self.MIN_VALUE, min(self.MAX_VALUE, c))
+
+        if a == self._a and b == self._b and c == self._c:
+            return
+
+        self._a = a
+        self._b = b
+        self._c = c
+        self._save()
+        self.changed.emit()
+
+    def set_a(self, value: int):
+        a = max(self.MIN_VALUE, min(self.MAX_VALUE, value))
+        b = max(self._b, a)
+        c = max(self._c, b)
+        self.set_all(a, b, c)
+
+    def set_b(self, value: int):
+        b = max(self._a, min(self._c, value))
+        self.set_all(self._a, b, self._c)
+
+    def set_c(self, value: int):
+        c = max(self.MIN_VALUE, min(self.MAX_VALUE, value))
+        b = min(self._b, c)
+        a = min(self._a, b)
+        self.set_all(a, b, c)
+
+    def _save(self):
+        try:
+            with open(SAVE_FILE, "w", encoding="utf-8") as f:
+                json.dump({"a": self._a, "b": self._b, "c": self._c}, f)
+        except OSError:
+            pass
+
+    def _load(self):
+        try:
+            with open(SAVE_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            a = int(data["a"])
+            b = int(data["b"])
+            c = int(data["c"])
+            if self.MIN_VALUE <= a <= b <= c <= self.MAX_VALUE:
+                self._a, self._b, self._c = a, b, c
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+        self.changed.emit()
+
+class NumberRow(QWidget):
+
+    value_edited = pyqtSignal(int)
+
+    def __init__(self, label: str, parent=None):
+        super().__init__(parent)
+
+        self._updating = False
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+
+        lbl = QLabel(f"<b>{label}</b>")
+        lbl.setFixedWidth(20)
+        layout.addWidget(lbl)
+
+        self._line_edit = QLineEdit()
+        self._line_edit.setFixedWidth(55)
+        self._line_edit.setAlignment(Qt.AlignmentFlag.AlignRight)
+        layout.addWidget(self._line_edit)
+
+        self._spin = QSpinBox()
+        self._spin.setRange(NumberModel.MIN_VALUE, NumberModel.MAX_VALUE)
+        self._spin.setFixedWidth(68)
+        layout.addWidget(self._spin)
+
+        self._slider = QSlider(Qt.Orientation.Horizontal)
+        self._slider.setRange(NumberModel.MIN_VALUE, NumberModel.MAX_VALUE)
+        layout.addWidget(self._slider)
+
+        self._line_edit.editingFinished.connect(self._on_line_edit_done)
+        self._spin.valueChanged.connect(self._on_spin_changed)
+        self._slider.valueChanged.connect(self._on_slider_changed)
+
+    def set_value(self, value: int):
+        self._updating = True
+        self._line_edit.setText(str(value))
+        self._spin.setValue(value)
+        self._slider.setValue(value)
+        self._updating = False
+
+    def _on_line_edit_done(self):
+        if self._updating:
+            return
+        text = self._line_edit.text().strip()
+        if text.lstrip("-").isdigit():
+            self.value_edited.emit(int(text))
+        else:
+            self.value_edited.emit(self._slider.value())
+
+    def _on_spin_changed(self, value: int):
+        if not self._updating:
+            self.value_edited.emit(value)
+
+    def _on_slider_changed(self, value: int):
+        if not self._updating:
+            self.value_edited.emit(value)
 
 class MainWindow(QMainWindow):
 
